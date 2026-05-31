@@ -9,7 +9,7 @@
 
 ## Why I Chose This Issue
 
-[1-2 paragraphs explaining why this issue interests you, how it matches your skills/learning goals, what you hope to learn]
+This issue interests me because it sits at the intersection of testing infrastructure and frontend quality—catching JavaScript errors in CI before they reach users is exactly the kind of reliability improvement I want to get better at. I have Python skills from my research (implementing algorithms in C++/Python, building Flask/Django apps) and solid JavaScript familiarity from React-based projects. I'm hoping to learn more about Selenium/Robot Framework browser testing patterns and how open-source CI pipelines validate frontend code—this seems like a great first contribution to SearXNG that builds on what I already know while pushing me into infrastructure testing I haven't explored much yet.
 
 ---
 
@@ -17,20 +17,21 @@
 
 ### Problem Description
 
-[The browser tests (Robot Framework via Splinter) don't check the browser console for JavaScript errors. PR #337 fixed a null pointer in searx.js that was only caught by chance, because the existing tests only assert on DOM text and element state — they'd pass even with JS errors in the console]
+The browser tests (Robot Framework via Splinter) don't check the browser console for JavaScript errors. PR #337 fixed a null pointer in searx.js that was only caught by chance, because the existing tests only assert on DOM text and element state — they'd pass even with JS errors in the console
 
 ### Expected Behavior
 
-[What should happen?]
+After each page interaction, the test should query driver.manage().logs().get("browser") and fail if any SEVERE entries (uncaught JS errors) are present. This would catch regressions like the one in #337 automatically.
 
 ### Current Behavior
 
-[What actually happens?]
+Console output is completely ignored. JS errors (even critical ones like Uncaught TypeError: n.querySelector(...) is null) don't affect test results.
 
 ### Affected Components
 
-[Which parts of the codebase are involved?]
-
+- tests/robot/__main__.py — the test runner; this is where the Browser instance is created (Firefox, headless) and where console checking could be injected after each test
+- tests/robot/test_webapp.py — the individual test functions, or alternatively a teardown hook in the runner
+- Splinter uses Selenium under the hood, so console access would be browser.driver.manage().logs().get("browser") — no new library needed
 ---
 
 ## Reproduction Process
