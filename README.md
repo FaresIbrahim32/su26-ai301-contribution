@@ -1,8 +1,8 @@
 # Contribution [#]: [Issue Title]
 
-**Contribution Number:** [1 / 2 / 3]  
+**Contribution Number:** 1 
 **Student:** Fares Ibrahim
-**Issue:** [GitHub issue link]  
+**Issue:**  https://github.com/searxng/searxng/issues/338
 **Status:** Phase 1
 
 ---
