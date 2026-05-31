@@ -1,6 +1,6 @@
-# Contribution [#]: #338
+# Contribution [#]: Selenium tests: check console output
 
-**Contribution Number:1 
+**Contribution Number:1
 **Student:Fares Ibrahim
 **Issue:https://github.com/searxng/searxng/issues/338
 **Status: Phase 1
