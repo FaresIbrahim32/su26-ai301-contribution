@@ -17,7 +17,7 @@
 
 ### Problem Description
 
-[In your own words, what's broken or missing?]
+[The browser tests (Robot Framework via Splinter) don't check the browser console for JavaScript errors. PR #337 fixed a null pointer in searx.js that was only caught by chance, because the existing tests only assert on DOM text and element state — they'd pass even with JS errors in the console]
 
 ### Expected Behavior
 
