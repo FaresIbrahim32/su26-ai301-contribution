@@ -1,15 +1,15 @@
-# Contribution [#]: Selenium tests: check console output
+# Contribution [#]: Migrate Makefile `install` target into CMake
 
 **Contribution Number:1
 **Student:Fares Ibrahim
-**Issue:https://github.com/searxng/searxng/issues/338
+**Issue:https://github.com/ponylang/ponyc/issues/3898
 **Status: Phase 1
 
 ---
 
 ## Why I Chose This Issue
 
-This issue interests me because it sits at the intersection of testing infrastructure and frontend quality—catching JavaScript errors in CI before they reach users is exactly the kind of reliability improvement I want to get better at. I have Python skills from my research (implementing algorithms in C++/Python, building Flask/Django apps) and solid JavaScript familiarity from React-based projects. I'm hoping to learn more about Selenium/Robot Framework browser testing patterns and how open-source CI pipelines validate frontend code—this seems like a great first contribution to SearXNG that builds on what I already know while pushing me into infrastructure testing I haven't explored much yet.
+This issue interests me because it sits at the intersection of build systems and toolchain reliability—making sure a configured build setting actually survives all the way through to installation is exactly the kind of correctness problem I want to get better at. I have C/C++ and Python experience from my research (implementing algorithms, building Flask/Django apps), and I've worked with Make and CMake on systems-level projects, so the Makefile-to-CMake migration here builds directly on what I already know. I'm hoping to learn more about how a mature compiler project like Pony structures its build and install pipeline, and how to keep configuration parameters consistent across `configure`, `build`, and `install`. It's labeled "good first issue" and "help wanted," which makes it a great first contribution to ponyc.
 
 ---
 
@@ -17,21 +17,20 @@ This issue interests me because it sits at the intersection of testing infrastru
 
 ### Problem Description
 
-The browser tests (Robot Framework via Splinter) don't check the browser console for JavaScript errors. PR #337 fixed a null pointer in searx.js that was only caught by chance, because the existing tests only assert on DOM text and element state — they'd pass even with JS errors in the console
+The `install` target in the Unix Makefile is not integrated with CMake, so it ignores the `arch` parameter that was passed during the `configure` step. When a user runs `make configure arch=not-our-default`, then `make build`, then `make install`, the install step falls back to the default architecture instead of the one the user configured. The result is a broken `ponyc` binary that cannot locate its library dependencies.
 
 ### Expected Behavior
 
-After each page interaction, the test should query driver.manage().logs().get("browser") and fail if any SEVERE entries (uncaught JS errors) are present. This would catch regressions like the one in #337 automatically.
+Architecture (and other configuration) settings should persist from `configure` through `build` and into `install`. Running `make configure arch=<something>` followed by `make build` and `make install` should produce a working `ponyc` installation built for the configured architecture—without the user having to re-specify `arch` at install time.
 
 ### Current Behavior
 
-Console output is completely ignored. JS errors (even critical ones like Uncaught TypeError: n.querySelector(...) is null) don't affect test results.
+`make install` uses the default architecture regardless of what was configured. The current workaround is to pass the `arch` parameter again during the install step. Without that workaround, the installed binary is broken and can't find its libraries.
 
 ### Affected Components
 
-- tests/robot/__main__.py — the test runner; this is where the Browser instance is created (Firefox, headless) and where console checking could be injected after each test
-- tests/robot/test_webapp.py — the individual test functions, or alternatively a teardown hook in the runner
-- Splinter uses Selenium under the hood, so console access would be browser.driver.manage().logs().get("browser") — no new library needed
+- `Makefile` — the `install` target; all of its current functionality needs to be migrated into CMake so configuration state is preserved
+- CMake build configuration — the install logic should live here so that values set during `configure` (e.g. `arch`) are carried through to `install`
 ---
 
 ## Reproduction Process
