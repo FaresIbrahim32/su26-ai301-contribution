@@ -136,7 +136,7 @@ There is no single buggy line; the defect is that `install` uses a *different so
 - [x] Optional artifacts use `OPTIONAL` so they don't break install when absent.
 - [x] Makefile `install` target name and recipe indentation (hard TAB) are valid — `make -n install` parses and resolves.
 - [x] Symlink layout matches CMake install destinations.
-- [ ] Changelog/release-notes fragment per CONTRIBUTING.md (pending).
+- [x] Release-notes fragment added (`.release-notes/fix-install-honors-configured-arch.md`).
 
 **Evaluate:** Re-run the reproduction scenario and confirm libs land in the configured location; on a real build box, run `make libs && make configure arch=<non-default> && make build && make install` and confirm the installed `ponyc` finds its libraries without re-passing `arch`.
 
@@ -154,11 +154,27 @@ There is no single buggy line; the defect is that `install` uses a *different so
 - [x] `grep` confirms no `lib/$(arch)` drift remains in the Makefile.
 - [x] `CMakeLists.txt` install block is paren-balanced and every Makefile symlink target maps to a real CMake install destination.
 
-### Full Build Verification (pending — requires LLVM build box)
+### Ensemble code review (pony-code-review)
 
-- [ ] `make libs && make configure arch=<non-default> && make build && make install` → libraries land in the configured location.
-- [ ] Installed `ponyc` compiles and links a sample program (finds its runtime libs).
-- [ ] `symlink=yes`, `DESTDIR` staging, and `uninstall` all still work.
+Ran ponylang's `pony-code-review` skill (8-persona full mode) against the branch. It surfaced — and I then fixed — two real regressions plus several smaller issues:
+
+- **Critical (Windows):** installing the runtime into `lib/${PONY_ARCH}` broke Windows, where the compiler searches a flat `..\lib` (`add_exec_dir()` in `src/libponyc/pkg/package.c` has no arch component on Windows) and `make.ps1` never sets `PONY_ARCH`. Fixed by gating the destination on platform (flat `lib` on Windows, `lib/${PONY_ARCH}` elsewhere).
+- **High (DESTDIR):** the Makefile already folds `DESTDIR` into `--prefix`, but `cmake --install` independently honors `$DESTDIR`, double-staging into `$DESTDIR/$DESTDIR`. Fixed by clearing `DESTDIR` in the cmake environment.
+- **Medium/Low:** fail loudly if `PONY_ARCH` can't be read from the cache; quote the symlink shell expansions; mark the tool `install(PROGRAMS)` rules `OPTIONAL`; add this release-notes fragment.
+- **Rejected one finding with reasoning:** a reviewer suggested the symlink block use make's `$(arch)` instead of reading the cache. Rejected — `$(arch)` re-defaulting to `native` at install time *is* the original #3898 bug; the cache holds the value the build actually used.
+
+### Full Build Verification — NOT DONE (disclosed)
+
+I did **not** build and run the install end-to-end. Two honest reasons:
+
+1. A local build requires `make libs`, which compiles LLVM from scratch (multiple hours); I did not have a build box to commit to that.
+2. **Regular CI would not verify it either** — no PR workflow runs `make install`; only the release/nightly scripts do, and they don't assert artifact placement. So the install path is exercised by neither my machine nor PR CI.
+
+Outstanding, to be verified by a maintainer or a dedicated build before merge:
+- [ ] `make libs && make configure arch=<non-default> && make build && make install` → libraries land in `lib/<arch>` and the installed `ponyc` links a sample program.
+- [ ] `symlink=yes`, `DESTDIR` staging, and `uninstall` paths.
+
+I will state this verification status plainly in the PR rather than imply the change is build-tested.
 
 ---
 
