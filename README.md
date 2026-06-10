@@ -99,8 +99,8 @@ There is no single buggy line; the defect is that `install` uses a *different so
 ### Proposed Solution
 
 1. Replace the shell `cp` logic in the Makefile `install` target with a thin wrapper: `cmake --install $(buildDir)`. Because `cmake --install` consumes the configured cache, the arch can no longer drift between `configure` and `install`.
-2. Add the matching `install()` rules to `CMakeLists.txt` so `cmake --install` actually installs everything the old shell logic did (libraries, headers, packages, tools).
-3. Reconcile the Makefile's optional `symlink=yes` block with the new flat `lib/` layout that the CMake rules produce.
+2. Add the matching `install()` rules to `CMakeLists.txt` so `cmake --install` actually installs everything the old shell logic did (libraries, headers, packages, tools), placing the runtime into `lib/${PONY_ARCH}`.
+3. Make the Makefile's optional `symlink=yes` block read the cached `PONY_ARCH` (not make's `$(arch)`) so its symlinks point at the same per-arch directory CMake installed into.
 
 ### Implementation Plan (UMPIRE)
 
@@ -113,20 +113,20 @@ There is no single buggy line; the defect is that `install` uses a *different so
 2. Replace the Makefile `install` body with a `cmake --install` wrapper.
 3. Translate each copied group into `install()` rules in `CMakeLists.txt`.
 4. Use `OPTIONAL` for artifacts that only exist in certain configs (pic libs, crt objects, dtrace).
-5. Reconcile the symlink block to the flat `lib/` layout.
+5. Install into `lib/${PONY_ARCH}` and make the symlink block read the same cached `PONY_ARCH`.
 
 **Implement:** Changes made on the ponyc fork:
 
 - **`Makefile`** — `install` target rewritten from ~20 lines of shell `cp` into:
   ```makefile
   install: all
-      $(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --install '$(buildDir)' --prefix $(ponydir) --config $(config) --strip
+      $(SILENT)cd '$(buildDir)' && env CC="$(CC)" CXX="$(CXX)" cmake --install '$(buildDir)' --prefix $(ponydir) --config $(config)
   ```
-  The `symlink=yes` block was updated to drop the `$(arch)` subdirectory (now flat `lib/`), matching the CMake install layout.
+  The `symlink=yes` block was updated to read the configured arch from the CMake cache (`grep '^PONY_ARCH:' CMakeCache.txt`) so its symlink sources match the per-arch directory CMake installs into — instead of make's drifting `$(arch)`.
 
 - **`CMakeLists.txt`** — install rules completed:
-  - Added `libponyc` to the `lib` target install (was only `libponyrt`).
-  - Added `install(FILES … OPTIONAL)` for the generated static libs and crt objects (`libponyc-standalone.a`, `libponyrt-pic.a`, `libdtrace_probes.a`, `crtbeginS.o`, `crtendS.o`, `crtbeginT.o`, `crtend.o`).
+  - Added `libponyc` to the lib install (was only `libponyrt`), with destination **`lib/${PONY_ARCH}`**.
+  - Added `install(FILES … OPTIONAL)` for the generated static libs and crt objects (`libponyc-standalone.a`, `libponyrt-pic.a`, `libdtrace_probes.a`, `crtbeginS.o`, `crtendS.o`, `crtbeginT.o`, `crtend.o`), also into `lib/${PONY_ARCH}`.
   - Added header installs for `pony.h` and `pony/detail/atomics.h`.
   - **Removed** the test/benchmark binaries (`libponyc.tests`, `libponyc.benchmarks`, `libponyrt.benchmarks`, `libponyrt.tests`) from the `bin` install — the old shell install never shipped these, so installing them was a regression.
 
@@ -170,14 +170,18 @@ Confirmed the bug live against `0.64.0 @ ab91e5cf` without a full compile, by re
 
 ### Phase 2 Progress — Fix
 
-Rewrote the Makefile `install` target as a `cmake --install` wrapper and completed the CMake `install()` rules so the wrapper actually installs the full set of artifacts. Caught and corrected an early mistake where the target was accidentally named `cmake --install` (make read everything before the `:` as the target name) and the recipe was indented with spaces instead of a TAB—both broke parsing. Then reconciled a layout mismatch: the CMake rules install libs to a flat `lib/`, but the Makefile symlink block still referenced `lib/<arch>/`, so the symlinks were silently skipped until I updated them.
+Rewrote the Makefile `install` target as a `cmake --install` wrapper and completed the CMake `install()` rules so the wrapper actually installs the full set of artifacts. Caught and corrected an early mistake where the target was accidentally named `cmake --install` (make read everything before the `:` as the target name) and the recipe was indented with spaces instead of a TAB—both broke parsing. The bigger correction came when I checked how the compiler locates its runtime: I had initially flattened the install to `lib/`, but `add_exec_dir()` in `src/libponyc/pkg/package.c` shows the installed `ponyc` looks for `../lib/<arch>` using the compiled-in `PONY_ARCH`. A flat layout would have broken the installed compiler. I corrected the install destination to `lib/${PONY_ARCH}` and made the symlink block read the cached `PONY_ARCH`, so the install location and the compiler's lookup path share one source of truth.
 
 ### Code Changes
 
 - **Files modified:** `Makefile` (install target + symlink block), `CMakeLists.txt` (install rules)
 - **Approach decisions:**
-  - Chose the **flat `lib/` layout** (drop the per-arch subdirectory entirely) as the single source of truth, since per-arch directories were the original cause of the drift. Both files now agree on this layout.
+  - Install the runtime into **`lib/${PONY_ARCH}`**, using `PONY_ARCH` as the single source of truth. This is the *same* cached value the compiler bakes in and uses at link time to locate its runtime (`add_exec_dir()` builds `../lib/<arch>` from the compiled-in `PONY_ARCH` — see `src/libponyc/pkg/package.c`). Tying the install destination to that one variable is what actually closes the drift.
+  - The symlink block reads `PONY_ARCH` from `CMakeCache.txt` rather than make's `$(arch)`, so every part of install — `cmake --install`, the symlinks, and the compiler's own lookup — agrees on the arch.
   - Used `install(TARGETS …)` for real targets so CMake resolves their archive paths regardless of output-directory settings, and `install(FILES … OPTIONAL)` for generated artifacts whose existence is platform/config dependent.
+  - Dropped `--strip` from `cmake --install`: the original install never stripped, and stripping would damage the static archives and crt object files (it removes symbols the linker needs).
+
+- **Course-correction worth recording:** my first attempt flattened the install to `lib/` (no arch subdirectory), reasoning that per-arch directories *were* the bug. That was wrong. Reading `add_exec_dir()` showed the installed compiler hard-looks-for `../lib/<arch>`, so a flat layout would have left it unable to find its runtime — recreating #3898 from the opposite side. The bug was never the per-arch directory; it was install reading a *different* arch than the build. The fix is one shared `PONY_ARCH`, not removing the directory.
 
 ### Known Caveats / Follow-ups
 
