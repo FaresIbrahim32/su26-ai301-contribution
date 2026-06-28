@@ -3,7 +3,7 @@
 **Contribution Number:** 1
 **Student:** Fares Ibrahim
 **Issue:** https://github.com/ponylang/ponyc/issues/3898
-**Status:** Phase III Complete — fix implemented and verified end-to-end on CI
+**Status:** Phase IV Complete — PR submitted and awaiting review
 
 ---
 
@@ -33,6 +33,29 @@ Architecture (and other configuration) settings should persist from `configure` 
 - `CMakeLists.txt` — the install logic should live here so that values set during `configure` (e.g. `arch`) are carried through to `install`
 
 ---
+
+## Phase IV — Pull Request and Review
+
+I opened the pull request for this contribution in the parent ponyc repository:
+
+- PR: https://github.com/ponylang/ponyc/pull/5593
+- Summary: migrated the old Makefile install logic into CMake so the install step honors the architecture selected at configure time rather than falling back to the default.
+
+I also updated the pull request description to explain the problem, the fix, and the verification I completed locally. The contribution is now in the review phase and is ready for maintainer feedback.
+
+### What I did before submitting
+
+- Reproduced the original issue and confirmed the fix removes the architecture drift.
+- Verified the change locally by building and installing with a non-default architecture.
+- Reviewed the diff to ensure the change stayed focused on the install-path issue.
+- Opened the PR against the upstream ponyc repository with a clear description and relevant issue reference.
+
+### Current status
+
+- **PR Link:** https://github.com/ponylang/ponyc/pull/5593
+- **PR Description:** Migrated the Makefile install target into CMake so the installed runtime uses the configured architecture path.
+- **Maintainer Feedback:** Awaiting review.
+- **Status:** Awaiting review / Phase IV complete
 
 ## Reproduction Process
 
