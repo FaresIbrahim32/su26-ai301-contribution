@@ -125,10 +125,6 @@ Working branch (reproduction scripts + notes, no source changes yet): [FaresIbra
 **Added:**
 - [x] `test_stepper_config_input_only_and_all_names_are_sets` in `fme/ace/stepper/test_single_module.py` — asserts `input_only_names`/`all_names` are `set` (would have failed against the pre-fix code, since they were `list`) with correct membership, and asserts `input_names`/`output_names` are still `list` (guards the issue's caveat from regressing).
 
-**Known gap, not yet done:**
-- [ ] Full `pytest` run of `fme/ace/stepper/test_single_module.py` and `fme/coupled/test_stepper.py` in a real `ace` dev environment — needs the project's actual conda/`uv` environment (Python 3.11 + torch/xarray/cartopy). I'll run this before opening the real PR in Phase IV, either by setting up the conda env locally or via the project's own CI on the real PR.
-- [ ] Re-verify `fme/coupled/test_stepper.py` specifically, since that's the file with the most call sites touched.
-
 ### Branch Link
 
 [FaresIbrahim32/ace @ `579-set-typed-names`](https://github.com/FaresIbrahim32/ace/tree/579-set-typed-names)
