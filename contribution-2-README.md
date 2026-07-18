@@ -4,7 +4,7 @@
 **Student:** Fares Ibrahim
 **Issue:** https://github.com/ai2cm/ace/issues/579
 **Fork:** https://github.com/FaresIbrahim32/ace
-**Status:** Phase II Complete — Reproduced the issue and wrote the solution plan
+**Status:** Phase III Complete — Fix implemented, locally verified, tests added
 
 ---
 
@@ -85,7 +85,53 @@ Working branch (reproduction scripts + notes, no source changes yet): [FaresIbra
 
 ## Phase III — Testing Strategy & Implementation Notes
 
-_To be completed in Phase III: implement the type changes, remove the redundant casts, and verify via the existing type-checker/test suite that nothing relying on list ordering broke._
+### Step 1: Contribution Guidelines Reviewed
+
+- **Style:** `ace` lints with `ruff` (`select = ["D", "E", "F", "I", "W", "UP"]`, Google-convention docstrings, line length 88) and type-checks with `mypy` (`--ignore-missing-imports --check-untyped-defs` per `.pre-commit-config.yaml`), both enforced via `pre-commit` and CI (`.github/workflows/pre-commit.yml`, `tests.yaml`).
+- **Testing:** `CONTRIBUTING.md` asks bug-fix PRs to include a unit test that would fail without the fix; `tests.yaml` runs the full suite with `pytest` + coverage on Python 3.11 via `uv`.
+- **Commit messages:** recent merged history (`git log --oneline`) uses short, imperative, present-tense summary lines with no enforced prefix — I followed that style rather than inventing a Conventional Commits format the project doesn't use.
+- **PR description:** `.github/pull_request_template.md` asks for a why/what description, a bulleted list of changed symbols, a "Tests added" checkbox, and `Resolves #<issue>` — I've been drafting Phase III's commit message and this README against that template so Phase IV is just copy-paste.
+
+### Implementation Notes
+
+**What I built:** Retyped the three unordered-name properties in `fme/ace/stepper/single_module.py` from `list[str]` to `set[str]`, and removed the now-redundant `list()`/`set()` casts at their definitions and at every call site, per the Phase II plan.
+
+**Files modified:**
+- `fme/ace/stepper/single_module.py` — `StepperConfig.input_only_names` and `.all_names`, and `Stepper._input_only_names`, retyped `-> set[str]`; `get_forcing_window_data_requirements`, `get_evaluation_window_data_requirements`, and `predict_generator` updated to consume them as sets, wrapping in `list(...)` only at the one real boundary that needs it (`DataRequirements.names: list[str]`).
+- `fme/coupled/stepper.py` — removed the redundant inner `set(...)` re-cast at all 8 call sites of `input_only_names`/`all_names`; kept the outer `list(...)` wrapper everywhere, since I confirmed (see Challenges below) that every one of `CoupledStepperConfig`'s own forcing-name attributes is either concatenated with `+`, appended to with `.append(...)`, or declared `-> list[str]` on an abstract property elsewhere — i.e. genuinely order/list-shaped per the issue's own caveat, not safe to retype.
+- `fme/ace/inference/evaluator.py` — widened `resolve_variable_metadata`'s `stepper_all_names` parameter from `Sequence[str]` to `Collection[str]`.
+- `fme/ace/stepper/test_single_module.py` — added `test_stepper_config_input_only_and_all_names_are_sets`.
+
+**Key commits** (on my `579-set-typed-names` branch):
+- [`7d2b455`](https://github.com/FaresIbrahim32/ace/commit/7d2b45568) — Add reproduction notes for issue #579 (Phase II)
+- [`dedf006`](https://github.com/FaresIbrahim32/ace/commit/dedf00624) — Type unordered stepper names as `set[str]` instead of casting `list<->set`
+
+### Challenges Faced
+
+- **A property I almost broke silently.** `all_names` also feeds `resolve_variable_metadata(..., stepper_all_names: Sequence[str])` in `fme/ace/inference/evaluator.py` (via `fme/ace/inference/inference.py` and a second call site). A `set` is not a `Sequence` — mypy would have caught this as a real type error the moment I retyped `all_names`, but only if I actually type-checked every call site rather than assuming the two I found first were the only ones. I re-grepped the whole repo for `.all_names`/`.input_only_names` (not just the two files from my plan) and found this third consumer. Since the function body only ever does `set(stepper_all_names)` and `for name in stepper_all_names` — never indexing or slicing — I widened the parameter to `Collection[str]` instead of leaving `all_names` as `list[str]` or wrapping it in a `list(...)` cast at the call site (which would've reintroduced exactly the boilerplate the issue is about).
+- **Distinguishing which `coupled/stepper.py` attributes were safe to retype.** My Phase II plan flagged this as unresolved ("to be confirmed per-field in Phase III — I'll verify each one rather than assume"). On inspection, `CoupledStepperConfig._all_ocean_names.append(...)` is called later in the same method, and several sibling attributes (`_ocean_forcing_exogenous_names`, etc.) have abstract property declarations elsewhere annotated `-> list[str]` and are concatenated with `+` at other use sites (e.g. `line 429`). Sets don't support `.append()` or `+`, so retyping those would have broken real behavior — this is exactly the "base config values / concatenation-derived values stay list" caveat from the issue, just one level removed from where the issue pointed. I left every `coupled/stepper.py`-owned attribute as `list[str]` and only removed the now-redundant inner `set(...)` re-cast around the two *upstream* properties I did retype.
+- **Considered opening a fork-internal PR to trigger real CI** (the approach that worked well for verifying Contribution #1, where a local build wasn't viable either). Opened one, then decided against keeping it open — a PR is a visible action on a shared platform and I didn't want to create fork/CI noise just to get a test run, so I closed it and relied on local `mypy`/`ruff` plus manual per-call-site tracing instead.
+- **Couldn't run the real pytest suite locally.** `ace` requires torch, cartopy, torch-harmonics, xarray, and more, installed via `make create_environment` (conda, pinned to Python 3.11). My local environment is Python 3.14, and a from-scratch install of that stack was too heavy/slow to do safely here. This is a real gap, not a solved problem — see Testing Strategy below for exactly what is and isn't verified yet.
+
+### Testing Strategy
+
+**What's actually verified:**
+- [x] `mypy --ignore-missing-imports --check-untyped-defs` (the exact flags `.pre-commit-config.yaml` uses) against all three modified source files: zero new errors. (One pre-existing, unrelated error in `fme/core/cli.py` was confirmed present on `origin/main` before my changes too — not something I introduced.)
+- [x] `ruff check` and `ruff format --check` (project config from `pyproject.toml`): all checks pass on all four modified files.
+- [x] Repo-wide grep for every remaining reference to `.input_only_names` / `.all_names` / `_input_only_names` (not just the files named in my plan) to make sure no consumer was missed — this is what surfaced the `Sequence[str]` issue above.
+- [x] Manually traced every non-test consumer of the retyped properties to its actual usage (concatenation, `.append()`, `Iterable`/`Collection`/`Sequence` parameter types) rather than assuming `Iterable`-like usage everywhere.
+- [x] Re-ran the Phase II standalone equivalence check (`repro_current_behavior.py` vs `repro_proposed_fix.py`) to confirm the retyped logic is behavior-preserving before touching real source.
+
+**Added:**
+- [x] `test_stepper_config_input_only_and_all_names_are_sets` in `fme/ace/stepper/test_single_module.py` — asserts `input_only_names`/`all_names` are `set` (would have failed against the pre-fix code, since they were `list`) with correct membership, and asserts `input_names`/`output_names` are still `list` (guards the issue's caveat from regressing).
+
+**Known gap, not yet done:**
+- [ ] Full `pytest` run of `fme/ace/stepper/test_single_module.py` and `fme/coupled/test_stepper.py` in a real `ace` dev environment — needs the project's actual conda/`uv` environment (Python 3.11 + torch/xarray/cartopy). I'll run this before opening the real PR in Phase IV, either by setting up the conda env locally or via the project's own CI on the real PR.
+- [ ] Re-verify `fme/coupled/test_stepper.py` specifically, since that's the file with the most call sites touched.
+
+### Branch Link
+
+[FaresIbrahim32/ace @ `579-set-typed-names`](https://github.com/FaresIbrahim32/ace/tree/579-set-typed-names)
 
 ## Phase IV — Pull Request & Review
 
