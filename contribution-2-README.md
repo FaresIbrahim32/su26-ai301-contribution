@@ -32,4 +32,5 @@ The affected values are inherently unordered, so typing them as lists was mislea
 ## Status
 
 - PR: https://github.com/ai2cm/ace/pull/1391
-- Maintainer feedback: pending
+- Review status: Awaiting review
+- Maintainer feedback: Not available yet
