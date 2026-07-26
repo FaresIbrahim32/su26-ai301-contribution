@@ -31,5 +31,5 @@ The affected values are inherently unordered, so typing them as lists was mislea
 
 ## Status
 
-- PR: pending
+- PR: https://github.com/ai2cm/ace/pull/1391
 - Maintainer feedback: pending
