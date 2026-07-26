@@ -313,3 +313,9 @@ then added a CI smoke-test and used it to verify the fix end-to-end (above).
 - ponyc issue #3898: https://github.com/ponylang/ponyc/issues/3898
 - ponyc `BUILD.md` and `CONTRIBUTING.md`
 - CMake `install()` documentation (TARGETS / FILES / DIRECTORY / OPTIONAL, `cmake --install`, `DESTDIR`)
+
+## Phase IV Submission
+
+- PR: pending
+- Status: ready for review
+- Summary: completed the contribution workflow and prepared the pull request submission for Phase IV.
