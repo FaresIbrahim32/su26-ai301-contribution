@@ -4,7 +4,7 @@
 **Student:** Fares Ibrahim
 **Issue:** https://github.com/ai2cm/ace/issues/579
 **Fork:** https://github.com/FaresIbrahim32/ace
-**Status:** Phase III Complete — Fix implemented, locally verified, tests added
+**Status:** Phase IV — PR open ([ai2cm/ace#1391](https://github.com/ai2cm/ace/pull/1391)), maintainer feedback addressed, awaiting merge
 
 ---
 
@@ -131,12 +131,16 @@ Working branch (reproduction scripts + notes, no source changes yet): [FaresIbra
 
 ## Phase IV — Pull Request & Review
 
-_To be completed in Phase IV: open the PR against `ai2cm/ace`, link it here, and log maintainer feedback._
+**PR Link:** [ai2cm/ace#1391](https://github.com/ai2cm/ace/pull/1391)
 
-## Phase IV — Pull Request & Review
+**PR Description:** Retyped the genuinely-unordered stepper name properties (`input_only_names`, `all_names`, `_input_only_names`) from `list[str]` to `set[str]` and removed the now-redundant `list()`/`set()` casts at their definitions and 8+ call sites, while leaving order-sensitive base-config values as `list[str]`. Includes a regression test.
 
-The PR for this contribution is now open against `ai2cm/ace`:
+Before opening the PR I rebased onto `upstream/main` (34 commits ahead across the touched files, clean rebase, re-verified the diff still applied correctly), reviewed `git diff upstream/main` line by line to confirm no unrelated changes, and confirmed CI (`pre-commit`, `docs`, `tests` cpu/gpu) all passed on the real PR.
 
-- PR: https://github.com/ai2cm/ace/pull/1391
-- Status: Awaiting review
-- Maintainer feedback: Not available yet
+### Maintainer Feedback Log
+
+- **2026-07-28 — @mcgibbon (contributor):** "PR looks good and can merge. It doesn't close the issue because I didn't make something clear in writing that issue - the StepABC and its implementations also use many list[str] that should be set[str] since they're unordered. Those will also need to be translated over to fully close it out. Nonetheless, this PR does what it says and it's an improvement. Please remove the 'Resolves' line from the PR description."
+  - **How I addressed it:** Edited the PR description to say "Related to #579 (partial...)" instead of "Resolves #579", so merging this PR won't auto-close the issue before the `StepABC` follow-up work is done. Replied on the PR thanking him, confirming the edit, and offering to take on the `StepABC`/implementations follow-up as a separate PR if useful.
+  - **Takeaway:** The issue as originally written undersold its own scope — a "good first issue" label doesn't always mean the *literal* text of the issue is the complete fix. Worth surfacing scope gaps like this back to the maintainer rather than silently doing (or silently skipping) more than what was asked.
+
+**Status:** Iterating — PR open, maintainer response received and addressed, awaiting merge or further feedback.
