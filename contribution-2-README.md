@@ -4,7 +4,7 @@
 **Student:** Fares Ibrahim
 **Issue:** https://github.com/ai2cm/ace/issues/579
 **Fork:** https://github.com/FaresIbrahim32/ace
-**Status:** Phase IV — PR open ([ai2cm/ace#1391](https://github.com/ai2cm/ace/pull/1391)), maintainer feedback addressed, awaiting merge
+**Status:** Phase IV Complete — PR merged into `ai2cm/ace`
 
 ---
 
@@ -143,4 +143,10 @@ Before opening the PR I rebased onto `upstream/main` (34 commits ahead across th
   - **How I addressed it:** Edited the PR description to say "Related to #579 (partial...)" instead of "Resolves #579", so merging this PR won't auto-close the issue before the `StepABC` follow-up work is done. Replied on the PR thanking him, confirming the edit, and offering to take on the `StepABC`/implementations follow-up as a separate PR if useful.
   - **Takeaway:** The issue as originally written undersold its own scope — a "good first issue" label doesn't always mean the *literal* text of the issue is the complete fix. Worth surfacing scope gaps like this back to the maintainer rather than silently doing (or silently skipping) more than what was asked.
 
-**Status:** Iterating — PR open, maintainer response received and addressed, awaiting merge or further feedback.
+- **2026-08-05 — @mcgibbon (contributor), approving review:** "I've deleted the dev notes. LGTM! Thank you."
+  - **What this meant:** He removed my `dev-notes/issue-579/` directory (the standalone reproduction/equivalence scripts from Phase II) directly on the branch before merging — reasonable, since those were scratch verification files for my own process, not something that belongs in the shipped codebase, and I hadn't flagged that they should be dropped before merge myself.
+  - **Takeaway:** Next time, I'll clean up my own dev-only scratch files out of the PR diff before requesting review, rather than leaving that cleanup for the maintainer to notice and do.
+
+**Merged:** [`1c62fd1`](https://github.com/ai2cm/ace/commit/1c62fd1325cf437099689e0e5a359bfb01cf804a) on 2026-08-05, by @mcgibbon.
+
+**Status:** Merged — PR #1391 is closed and merged into `ai2cm/ace:main`. Follow-up scope (retyping the equivalent unordered `list[str]` values in `StepABC` and its implementations, per @mcgibbon's first comment) remains open; I offered to pick it up as a separate PR and am waiting to hear if he wants that.
